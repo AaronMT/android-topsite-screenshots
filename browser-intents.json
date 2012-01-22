@@ -1,0 +1,5 @@
+[
+	"com.google.android.browser/com.android.browser.BrowserActivity",
+	"org.mozilla.fennec/.App",
+	"com.opera.browser/com.opera.Opera"
+]
