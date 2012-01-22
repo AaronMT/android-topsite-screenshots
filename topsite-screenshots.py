@@ -21,7 +21,7 @@ class topsite_screenshots:
 		for self.n, self.x in enumerate(self._list_of_browsers):
 			for self.o, self.y in enumerate(self._list_of_sites):
 				self._startBrowserIntent(self.x, self.y)
-				time.sleep(7) #Hack
+				time.sleep(12) #Hack: Need to figure out how to wait for page load
 				self._createScreenshot("%s-%s" % (self.o, self.n))
 
 	def _startBrowserIntent(self, _browser_intent, _site):
