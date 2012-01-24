@@ -15,7 +15,7 @@
 #
 # The Initial Developer of the Original Code is
 # Aaron Train.
-# Portions created by the Initial Developer are Copyright (C) 2011
+# Portions created by the Initial Developer are Copyright (C) 2012
 # the Initial Developer. All Rights Reserved.
 #
 # Contributor(s):
@@ -39,24 +39,34 @@ import optparse
 import json
 import time
 import subprocess
+import os
 
 _browser_intents = {'android' : 'com.google.android.browser/com.android.browser.BrowserActivity',
 					'fennec-native' : 'org.mozilla.fennec/.App',
               		'opera' : 'com.opera.browser/com.opera.Opera'}
 
+waitForPageLoad = 0 #TODO: Need to figure out a better wait for page load
+
 class StartupOptions(optparse.OptionParser):
 	def __init__(self, configFile=None, **kwargs):
 		optparse.OptionParser.__init__(self, **kwargs)
-		defaults = {}
 
 		self.add_option("--sites", action="store", dest="sites", type="string",
-						help="Provide a JSON list of top sites")
+						help="Provide a JSON list of top sites to visit")
 		
 		self.add_option("--dir", action="store", dest="dir", type="string",
-						help="Provide an existing directory to store screenshots")
+						help="Provide an existing directory to store PNG screenshots")
 
-		defaults["sites"] = None
-		defaults["dir"] = None
+	def verify_options(self, options):
+		if(not os.path.exists(options.dir)):
+			print "Provided directory %s does not exist" % options.dir
+			return False
+		
+		if(not os.path.isfile(options.sites)):
+			print "Provided JSON list %s does not exist" % options.sites
+			return False
+
+		return options
 
 class topsite_screenshots:
 	def __init__(self, options):
@@ -77,21 +87,32 @@ class topsite_screenshots:
 			for site in self.sites:
 				self._startBrowserIntent(intent, site)
 				self._createScreenshot("%s-%s" % (self.sites.index(site), index))
+			self._killBrowser(intent)
 
 	def _startBrowserIntent(self, intent, site):
 		subprocess.call(["adb", "shell", "am", "start", "-a", "android.intent.action.VIEW", "-n", intent, site])
-		time.sleep(12) #Hack: Need to figure out wait for page load
+		time.sleep(waitForPageLoad)
 
 	def _createScreenshot(self, index):
-		subprocess.call(["adb", "pull", "/dev/graphics/fb0", "fb0"])
-		subprocess.call(["dd", "bs=1920", "count=800", "if=fb0", "of=fb0b"])
+		subprocess.call(["adb", "pull", "/dev/graphics/fb0", "%s%s" % (self.dir, "fb0")])
+		subprocess.call(["dd", "bs=1920", "count=800", "if=%s%s" % (self.dir, "fb0"), "of=%s%s" % (self.dir, "fb0b")])
 		subprocess.call(["ffmpeg", "-vframes", "1", "-vcodec", "rawvideo", "-f", "rawvideo", "-pix_fmt", 
-						 "rgb32", "-s", "480x800", "-i", "fb0b", "-f", "image2", "-vcodec", "png",
+						 "rgb32", "-s", "480x800", "-i", "%s%s" % (self.dir, "fb0b"), "-f", "image2", "-vcodec", "png",
 						 "%s%s.png" % (self.dir, index)])
+	
+	def _killBrowser(self, intent):
+		pid = subprocess.Popen(["-c", "adb shell ps | grep %s | awk ' {print $2} '" % (intent.split("/")[0])], 
+		                        stdin=subprocess.PIPE, shell=True)
+		pid.communicate("")
+		pid.wait()
+
+		subprocess.call(["adb", "shell", "run-as", intent.split("/")[0], "kill", pid])
 
 def main():
 	parser = StartupOptions()
-	options, args = parser.parse_args()
+	(options, args) = parser.parse_args()
+
+	options = parser.verify_options(options)
 
 	if not options:
 		raise Exception('Options', 'Invalid options passed to topsite-screenshots')
