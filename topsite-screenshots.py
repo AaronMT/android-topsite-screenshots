@@ -39,9 +39,7 @@ from com.android.monkeyrunner import MonkeyRunner, MonkeyDevice
 import sys, csv
 
 browsers = ['com.google.android.browser/com.android.browser.BrowserActivity',
-			'org.mozilla.fennec/.App',
-			'org.mozilla.firefox/.App',
-            'com.opera.browser/com.opera.Opera']
+'org.mozilla.fennec/.App', 'org.mozilla.firefox/.App','com.opera.browser/com.opera.Opera']
 
 sites = []
 
@@ -50,7 +48,7 @@ def main():
     device = MonkeyRunner.waitForConnection()
 
     # Read a list of sites
-    for n in csv.reader(open(sys.argv[1]).readlines()[1:]):
+    for n in csv.reader(open(sys.argv[1]).readlines()):
         sites.append(n)
 
     #Start each browser activity with the provided URI
@@ -63,7 +61,7 @@ def main():
             device.startActivity(component=browser, uri=site[0])
             
             # Wait for page load
-            MonkeyRunner.sleep(12)
+            MonkeyRunner.sleep(12) # Page load timeout
             
             # Snap a screenshot of the activity
             result = device.takeSnapshot()
