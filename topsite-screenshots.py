@@ -35,90 +35,39 @@
 #
 # ***** END LICENSE BLOCK *****
 
-import optparse
-import json
-import time
-import subprocess
-import os
+from com.android.monkeyrunner import MonkeyRunner, MonkeyDevice
+import sys, csv
 
-_browser_intents = {'android' : 'com.google.android.browser/com.android.browser.BrowserActivity',
-					'fennec-native' : 'org.mozilla.fennec/.App',
-              		'opera' : 'com.opera.browser/com.opera.Opera'}
+browsers = ['com.google.android.browser/com.android.browser.BrowserActivity',
+			'org.mozilla.fennec/.App',
+			'org.mozilla.firefox/.App',
+            'com.opera.browser/com.opera.Opera']
 
-waitForPageLoad = 0 #TODO: Need to figure out a better wait for page load
-
-class StartupOptions(optparse.OptionParser):
-	def __init__(self, configFile=None, **kwargs):
-		optparse.OptionParser.__init__(self, **kwargs)
-
-		self.add_option("--sites", action="store", dest="sites", type="string",
-						help="Provide a JSON list of top sites to visit")
-		
-		self.add_option("--dir", action="store", dest="dir", type="string",
-						help="Provide an existing directory to store PNG screenshots")
-
-	def verify_options(self, options):
-		if(not os.path.exists(options.dir)):
-			print "Provided directory %s does not exist" % options.dir
-			return False
-		
-		if(not os.path.isfile(options.sites)):
-			print "Provided JSON list %s does not exist" % options.sites
-			return False
-
-		return options
-
-class topsite_screenshots:
-	def __init__(self, options):
-		self.sites = options.sites
-		self.dir = options.dir
-
-	def Run(self):
-		self.sites = self._read_json(self.sites)
-		self._startBrowserAndScreenshot()
-
-	def _read_json(self, _jsonfile):
-		self.json_file = open(_jsonfile).read()
-		self.json_data = json.loads(self.json_file)
-		return self.json_data
-
-	def _startBrowserAndScreenshot(self):
-		for index, intent in enumerate(_browser_intents.itervalues()):
-			for site in self.sites:
-				self._startBrowserIntent(intent, site)
-				self._createScreenshot("%s-%s" % (self.sites.index(site), index))
-			self._killBrowser(intent)
-
-	def _startBrowserIntent(self, intent, site):
-		subprocess.call(["adb", "shell", "am", "start", "-a", "android.intent.action.VIEW", "-n", intent, site])
-		time.sleep(waitForPageLoad)
-
-	def _createScreenshot(self, index):
-		subprocess.call(["adb", "pull", "/dev/graphics/fb0", "%s%s" % (self.dir, "fb0")])
-		subprocess.call(["dd", "bs=1920", "count=800", "if=%s%s" % (self.dir, "fb0"), "of=%s%s" % (self.dir, "fb0b")])
-		subprocess.call(["ffmpeg", "-vframes", "1", "-vcodec", "rawvideo", "-f", "rawvideo", "-pix_fmt", 
-						 "rgb32", "-s", "480x800", "-i", "%s%s" % (self.dir, "fb0b"), "-f", "image2", "-vcodec", "png",
-						 "%s%s.png" % (self.dir, index)])
-	
-	def _killBrowser(self, intent):
-		pid = subprocess.Popen(["-c", "adb shell ps | grep %s | awk ' {print $2} '" % (intent.split("/")[0])], 
-		                        stdin=subprocess.PIPE, shell=True)
-		pid.communicate("")
-		pid.wait()
-
-		subprocess.call(["adb", "shell", "run-as", intent.split("/")[0], "kill", pid])
+sites = []
 
 def main():
-	parser = StartupOptions()
-	(options, args) = parser.parse_args()
+    # Connects to the current device, returning a MonkeyDevice object
+    device = MonkeyRunner.waitForConnection()
 
-	options = parser.verify_options(options)
+    # Read a list of sites
+    for n in csv.reader(open(sys.argv[1]).readlines()[1:]):
+        sites.append(n)
 
-	if not options:
-		raise Exception('Options', 'Invalid options passed to topsite-screenshots')
-
-	n = topsite_screenshots(options)
-	n.Run()
+    #Start each browser activity with the provided URI
+    for index, browser in enumerate(browsers):
+        
+        # Visit each site
+        for site in sites:
+            
+            # Start the activity
+            device.startActivity(component=browser, uri=site[0])
+            
+            # Wait for page load
+            MonkeyRunner.sleep(12)
+            
+            # Snap a screenshot of the activity
+            result = device.takeSnapshot()
+            result.writeToFile("%s%s-%s.png" % (sys.argv[2], sites.index(site), index), 'png')
 
 if __name__ == "__main__":
 	main()
