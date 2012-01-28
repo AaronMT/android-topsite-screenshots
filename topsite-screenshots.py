@@ -39,7 +39,9 @@ from com.android.monkeyrunner import MonkeyRunner, MonkeyDevice
 import sys, csv
 
 browsers = ['com.google.android.browser/com.android.browser.BrowserActivity',
-'org.mozilla.fennec/.App', 'org.mozilla.firefox/.App','com.opera.browser/com.opera.Opera']
+            'org.mozilla.fennec/.App', 
+            'org.mozilla.firefox/.App',
+            'com.opera.browser/com.opera.Opera']
 
 sites = []
 
@@ -57,13 +59,13 @@ def main():
         # Visit each site
         for site in sites:
             
-            # Start the activity
+            # Start the activity with the provided site
             device.startActivity(component=browser, uri=site[0])
             
             # Wait for page load
             MonkeyRunner.sleep(12) # Page load timeout
             
-            # Snap a screenshot of the activity
+            # Snap a screenshot of the running activity
             result = device.takeSnapshot()
             result.writeToFile("%s%s-%s.png" % (sys.argv[2], sites.index(site), index), 'png')
 
