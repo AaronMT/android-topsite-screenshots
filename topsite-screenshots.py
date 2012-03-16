@@ -13,8 +13,7 @@
 #
 # The Original Code is android-topsite-screenshots.
 #
-# The Initial Developer of the Original Code is
-# Aaron Train.
+# The Initial Developer of the Original Code is Aaron Train.
 # Portions created by the Initial Developer are Copyright (C) 2012
 # the Initial Developer. All Rights Reserved.
 #
@@ -38,36 +37,27 @@
 from com.android.monkeyrunner import MonkeyRunner, MonkeyDevice
 import sys, csv
 
-browsers = ['com.google.android.browser/com.android.browser.BrowserActivity',
-            'org.mozilla.fennec/.App', 
-            'org.mozilla.firefox/.App',
-            'com.opera.browser/com.opera.Opera']
-
-sites = []
+browsers = ['com.android.chrome/.Main',
+            'org.mozilla.fennec/.App']
 
 def main():
     # Connects to the current device, returning a MonkeyDevice object
     device = MonkeyRunner.waitForConnection()
 
-    # Read a list of sites
-    for n in csv.reader(open(sys.argv[1]).readlines()):
-        sites.append(n)
-
     #Start each browser activity with the provided URI
-    for index, browser in enumerate(browsers):
+    for run, browser in enumerate(browsers):
         
         # Visit each site
-        for site in sites:
+        for visit, site in enumerate(csv.reader(open(sys.argv[1]).readlines())):
             
             # Start the activity with the provided site
             device.startActivity(component=browser, uri=site[0])
             
-            # Wait for page load
-            MonkeyRunner.sleep(12) # Page load timeout
-            
+            # Wait for page load timeout
+            MonkeyRunner.sleep(20) # Sleep 20 seconds between page loads
+
             # Snap a screenshot of the running activity
-            result = device.takeSnapshot()
-            result.writeToFile("%s%s-%s.png" % (sys.argv[2], sites.index(site), index), 'png')
+            device.takeSnapshot().writeToFile("%s%s-%s.png" % (sys.argv[2], visit, run), 'png')
 
 if __name__ == "__main__":
 	main()
